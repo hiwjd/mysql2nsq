@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/hiwjd/mysql2nsq"
+	"github.com/nsqio/go-nsq"
 	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/replication"
 )
@@ -23,6 +24,7 @@ var (
 	GTIDSetFilePath string
 	initGTIDSetStr  string
 	tableFilePath   string
+	nsqdAddr        string
 )
 
 func init() {
@@ -34,6 +36,7 @@ func init() {
 	flag.StringVar(&GTIDSetFilePath, "fp", "current_gtidset.db", "file to storage GTIDSet")
 	flag.StringVar(&initGTIDSetStr, "i", "", "init GTIDSet")
 	flag.StringVar(&tableFilePath, "tfp", "./table.json", "a json file that storage table column info")
+	flag.StringVar(&nsqdAddr, "nsqdAddr", "127.0.0.1:4150", "nsqd address")
 
 	fh, err := log.NewFileHandler(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND)
 	if err != nil {
@@ -66,6 +69,13 @@ func main() {
 	GTIDSet, err := storage.Read()
 	if err != nil {
 		log.Errorf("Read init GTIDSet failed: %s\n", err)
+		os.Exit(1)
+	}
+
+	nsqConfig := nsq.NewConfig()
+	producer, err := nsq.NewProducer(nsqdAddr, nsqConfig)
+	if err != nil {
+		log.Errorf("New nsq producer failed: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -125,13 +135,13 @@ loop:
 				case replication.WRITE_ROWS_EVENTv2, replication.UPDATE_ROWS_EVENTv2, replication.DELETE_ROWS_EVENTv2:
 					// 发送新增、删除、修改数据到nsq
 					ev.Dump(os.Stdout)
-					if evt, ok := ev.Event.(*replication.RowsEvent); ok {
-						log.Infof("schem:%s table:%s\n", evt.Table.Schema, evt.Table.Table)
-						for row := range evt.Rows {
-							fmt.Println(row)
-						}
+					dc, err := mysql2nsq.NewDataChangedFromBinlogEvent(ev, tableMap)
+					if err != nil {
+						log.Errorf("转换成DataChanged出错了：%s\n", err)
 					} else {
-						log.Errorf("Convert event to replication.RowsEvent failed, event: \n")
+						if err = producer.Publish(dc.Schema, dc.Encode()); err != nil {
+							log.Errorf("发布至nsq失败：%s\n", err)
+						}
 					}
 					break
 				}
