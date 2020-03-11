@@ -1,40 +1,59 @@
 package mysql2nsq
 
 import (
-	"io/ioutil"
 	"testing"
+
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestReadFromFileToTable(t *testing.T) {
-	fn := "./test-table.json"
+func TestNewTableMetaManager(t *testing.T) {
+	db, err := gorm.Open("mysql", "root:@/information_schema?charset=utf8&parseTime=True&loc=Local")
+	assert.Nil(t, err)
+	defer db.Close()
 
-	// 准备数据
-	if err := ioutil.WriteFile(fn, []byte(`{"db1-user":{"Cols":[{"Name":"id"},{"Name":"name"}]}}`), 0644); err != nil {
-		t.Fatal("prepare data failed.")
+	sc1 := SchemaConfig{
+		Name:   "central-kitchen",
+		Tables: []string{"picking_batch", "picking_batch_item"},
 	}
 
-	data, err := ReadFromFileToTable(fn)
-	if err != nil {
-		t.Fatal(err)
+	schema := Schema{
+		Name: "central-kitchen",
+		Tables: []Table{
+			Table{
+				Name: "picking_batch",
+				Columns: []Column{
+					Column{ColumnName: "id", OrdinalPosition: 1, IsNullable: "NO", DataType: "int"},
+					Column{ColumnName: "batch_no", OrdinalPosition: 2, IsNullable: "NO", DataType: "varchar"},
+					Column{ColumnName: "shop_id", OrdinalPosition: 3, IsNullable: "NO", DataType: "int"},
+					Column{ColumnName: "operator_name", OrdinalPosition: 4, IsNullable: "NO", DataType: "varchar"},
+					Column{ColumnName: "operator_id", OrdinalPosition: 5, IsNullable: "YES", DataType: "int"},
+					Column{ColumnName: "created_at", OrdinalPosition: 6, IsNullable: "YES", DataType: "datetime"},
+					Column{ColumnName: "updated_at", OrdinalPosition: 7, IsNullable: "YES", DataType: "datetime"},
+					Column{ColumnName: "deleted_at", OrdinalPosition: 8, IsNullable: "YES", DataType: "datetime"},
+				},
+			},
+			Table{
+				Name: "picking_batch_item",
+				Columns: []Column{
+					Column{ColumnName: "id", OrdinalPosition: 1, IsNullable: "NO", DataType: "int"},
+					Column{ColumnName: "batch_no", OrdinalPosition: 2, IsNullable: "NO", DataType: "varchar"},
+					Column{ColumnName: "shop_id", OrdinalPosition: 3, IsNullable: "NO", DataType: "int"},
+					Column{ColumnName: "code", OrdinalPosition: 4, IsNullable: "NO", DataType: "varchar"},
+					Column{ColumnName: "number", OrdinalPosition: 5, IsNullable: "NO", DataType: "int"},
+					Column{ColumnName: "operator_name", OrdinalPosition: 6, IsNullable: "NO", DataType: "varchar"},
+					Column{ColumnName: "operator_id", OrdinalPosition: 7, IsNullable: "YES", DataType: "int"},
+					Column{ColumnName: "created_at", OrdinalPosition: 8, IsNullable: "YES", DataType: "datetime"},
+					Column{ColumnName: "updated_at", OrdinalPosition: 9, IsNullable: "YES", DataType: "datetime"},
+					Column{ColumnName: "deleted_at", OrdinalPosition: 10, IsNullable: "YES", DataType: "datetime"},
+				},
+			},
+		},
 	}
 
-	if len(data) != 1 {
-		t.Fatal("1")
-	}
-
-	table := data["db1-user"]
-	if table == nil {
-		t.Fatal("2")
-	}
-
-	expectNames := []string{"id", "name"}
-	for i := 0; i < 2; i++ {
-		col, err := table.GetColumnByIndex(i)
-		if err != nil {
-			t.Fatal("3")
-		}
-		if col == nil || col.Name != expectNames[i] {
-			t.Fatal("4")
-		}
-	}
+	mng, err := NewTableMetaManager(db, []SchemaConfig{sc1})
+	assert.Nil(t, err)
+	assert.NotNil(t, mng)
+	assert.Equal(t, []Schema{schema}, mng.schemas)
 }

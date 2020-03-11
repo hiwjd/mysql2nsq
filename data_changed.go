@@ -3,7 +3,6 @@ package mysql2nsq
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/siddontang/go-mysql/replication"
 )
@@ -47,7 +46,7 @@ func (dc *DataChanged) Decode(bs []byte) error {
 }
 
 // NewDataChangedFromBinlogEvent construct DataChanged from BinlogEvent
-func NewDataChangedFromBinlogEvent(ev *replication.BinlogEvent, tableMap map[string]*Table) (*DataChanged, error) {
+func NewDataChangedFromBinlogEvent(ev *replication.BinlogEvent, tmm *TableMetaManager) (*DataChanged, error) {
 	dc := &DataChanged{}
 
 	switch ev.Header.EventType {
@@ -73,11 +72,10 @@ func NewDataChangedFromBinlogEvent(ev *replication.BinlogEvent, tableMap map[str
 
 	dc.Schema = string(evt.Table.Schema)
 	dc.Table = string(evt.Table.Table)
-	tableMapID := fmt.Sprintf("%s-%s", dc.Schema, dc.Table)
 
-	var tbl *Table
-	if tbl, ok = tableMap[tableMapID]; !ok {
-		return nil, ErrTableNotFound
+	tbl, err := tmm.Query(dc.Schema, dc.Table)
+	if err != nil {
+		return nil, err
 	}
 
 	rows := make([]map[string]interface{}, len(evt.Rows))
@@ -85,9 +83,13 @@ func NewDataChangedFromBinlogEvent(ev *replication.BinlogEvent, tableMap map[str
 	for i, row := range evt.Rows {
 		r := make(map[string]interface{})
 
-		for j, d := range row {
-			col, _ := tbl.GetColumnByIndex(j)
-			r[col.Name] = d
+		for j, v := range row {
+			col, err := tbl.Query(j)
+			if err != nil {
+				return nil, err
+			}
+
+			r[col.ColumnName] = col.Format(v)
 		}
 
 		rows[i] = r
