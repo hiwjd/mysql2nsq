@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"os/signal"
 	"time"
@@ -16,6 +14,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/nsqio/go-nsq"
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/replication"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -36,7 +35,7 @@ func main() {
 		panic(err.Error())
 	}
 
-	var w io.Writer
+	var w log.Handler
 	switch config.Log.Output {
 	case "stdout":
 		w = os.Stdout
@@ -46,13 +45,14 @@ func main() {
 			Filename:   config.Log.Output,
 			MaxSize:    config.Log.MaxSize, // megabytes
 			MaxBackups: config.Log.MaxBackups,
-			MaxAge:     28,                  // days
+			MaxAge:     config.Log.MaxAge,   // days
 			Compress:   config.Log.Compress, // disabled by default
 		}
 	}
 
-	log.SetFlags(log.LstdFlags)
-	log.SetOutput(w)
+	logger := log.NewDefault(w)
+	log.SetDefaultLogger(logger)
+	log.SetLevel(log.LevelTrace)
 
 	// 数据库
 	mysqlDSN := fmt.Sprintf(
@@ -66,8 +66,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("打开数据库失败: %s\n", err.Error())
 	}
-	db.SetLogger(log.New(w, "gorm:", log.LstdFlags))
-	db.LogMode(true)
+	db.SetLogger(logger)
+	db.LogMode(false)
 	defer db.Close()
 
 	// 表字段定义
@@ -97,7 +97,7 @@ func main() {
 	// Create a binlog syncer with a unique server id, the server id must be different from other MySQL's.
 	// flavor is mysql or mariadb
 	cfg := replication.BinlogSyncerConfig{
-		ServerID: 102,
+		ServerID: config.Mysql.ServerID,
 		Flavor:   "mysql",
 		Host:     config.Mysql.Host,
 		Port:     config.Mysql.Port,
@@ -111,7 +111,7 @@ func main() {
 		log.Fatalf("Start sync failed: %s\n", err)
 	}
 
-	log.Printf("Start syncing from GTIDSet: %s\n", GTIDSet)
+	log.Infof("Start syncing from GTIDSet: %s\n", GTIDSet)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, os.Kill)
@@ -120,8 +120,7 @@ loop:
 	for {
 		select {
 		case <-c:
-			log.Printf("Receive interrupt signal, prepare to exit\n")
-			// if ok, fstore := store.(*mysql2nsq.fileStorage)
+			log.Infof("Receive interrupt signal, prepare to exit\n")
 			syncer.Close()
 			break loop
 		default:
@@ -134,12 +133,9 @@ loop:
 					// 超时了，继续等待
 					continue
 				}
-				log.Printf("ERROR 等待binlog时触发错误: %s\n", err.Error())
+				log.Errorf("等待binlog时触发错误: %s\n", err.Error())
 				break loop
 			}
-
-			// Dump event
-			// ev.Dump(os.Stdout)
 
 			switch e := ev.Event.(type) {
 			case *replication.GTIDEvent:
@@ -147,19 +143,18 @@ loop:
 				u, _ := uuid.FromBytes(e.SID)
 				GTID := fmt.Sprintf("%s:%d", u.String(), e.GNO)
 				if err := storage.Update(GTID); err != nil {
-					log.Printf("ERROR 更新GTID失败 %s: %s\n", GTID, err.Error())
+					log.Errorf("更新GTID失败 %s: %s\n", GTID, err.Error())
 				}
 				break
 			case *replication.RowsEvent:
 				// 发送新增、删除、修改数据到nsq
-				// ev.Dump(os.Stdout)
 				dc, err := mysql2nsq.NewDataChangedFromBinlogEvent(ev, tmm)
 				if err != nil {
-					log.Printf("ERROR 转换成DataChanged出错了：%s\n", err.Error())
+					log.Errorf("转换成DataChanged出错了：%s\n", err.Error())
 				} else {
-					log.Printf("准备发送数据: %+v\n", dc)
+					log.Debugf("准备发送数据: %+v\n", dc)
 					if err = producer.Publish(dc.Schema, dc.Encode()); err != nil {
-						log.Printf("ERROR 发布至nsq失败：%s\n", err)
+						log.Errorf("发布至nsq失败：%s\n", err)
 					}
 				}
 				break

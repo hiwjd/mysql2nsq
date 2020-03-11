@@ -1,14 +1,18 @@
 nsqd_addr = "127.0.0.1:4150"
 
+enable_db_log = false
+
 [log]
   output = "stdout" // stdout 或者 文件路径
   max_size = 100 // MB
   max_backups = 7
+  max_age = 10
   compress = true
 
 # mysql配置
 # 注意，这里配置的帐号需要有slave和查询`information_schema`库的权限
 [mysql]
+  server_id = 102
   host = "127.0.0.1"
   port = 3306
   user = "root"

@@ -9,6 +9,7 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/nsqio/go-nsq v1.0.8
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07
 	github.com/siddontang/go-mysql v0.0.0-20200120044259-a9add8d89449
 	github.com/stretchr/testify v1.2.2
 	google.golang.org/appengine v1.6.5 // indirect

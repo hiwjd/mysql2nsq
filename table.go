@@ -2,10 +2,10 @@ package mysql2nsq
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	"github.com/jinzhu/gorm"
+	"github.com/siddontang/go-log/log"
 )
 
 var (
@@ -98,7 +98,7 @@ var colValueFormat map[string]func(interface{}) interface{} = map[string]func(in
 
 		t, err := time.Parse("2006-01-02 15:04:05", v.(string))
 		if err != nil {
-			log.Printf("ERROR format column value of datetime type failed: %s\n", err.Error())
+			log.Errorf("ERROR format column value of datetime type failed: %s\n", err.Error())
 			return v
 		}
 
