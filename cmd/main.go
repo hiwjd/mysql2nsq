@@ -67,7 +67,7 @@ func main() {
 		log.Fatalf("打开数据库失败: %s\n", err.Error())
 	}
 	db.SetLogger(logger)
-	db.LogMode(false)
+	db.LogMode(config.EnableDBLog)
 	defer db.Close()
 
 	// 表字段定义
