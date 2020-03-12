@@ -1,7 +1,9 @@
 package mysql2nsq
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -88,6 +90,14 @@ func (tmm TableMetaManager) readAllTableNamesInSchema(schemaName string) ([]stri
 		return nil, err
 	}
 	return tableNames, nil
+}
+
+func (tmm TableMetaManager) Dump(w io.Writer) {
+	if bs, err := json.Marshal(tmm.schemas); err != nil {
+		w.Write([]byte("dump err: " + err.Error()))
+	} else {
+		w.Write(bs)
+	}
 }
 
 var colValueFormat map[string]func(interface{}) interface{} = map[string]func(interface{}) interface{}{

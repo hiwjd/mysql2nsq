@@ -76,6 +76,8 @@ func main() {
 		log.Fatalf("表结构获取失败: %s\n", err.Error())
 	}
 
+	tmm.Dump(w)
+
 	// GTIDSet存储器
 	storage, err := mysql2nsq.NewGTIDSetStorage(config.Storage.FilePath, config.Storage.InitGTIDSet)
 	if err != nil {
