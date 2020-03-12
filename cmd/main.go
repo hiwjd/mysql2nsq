@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -116,7 +117,7 @@ func main() {
 	log.Infof("Start syncing from GTIDSet: %s\n", GTIDSet)
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 loop:
 	for {
@@ -136,6 +137,7 @@ loop:
 					continue
 				}
 				log.Errorf("等待binlog时触发错误: %s\n", err.Error())
+				syncer.Close()
 				break loop
 			}
 

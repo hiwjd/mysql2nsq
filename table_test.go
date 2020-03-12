@@ -9,6 +9,7 @@ import (
 )
 
 func TestNewTableMetaManager(t *testing.T) {
+	t.Skip("依赖mysql特定表information_schema")
 	db, err := gorm.Open("mysql", "root:@/information_schema?charset=utf8&parseTime=True&loc=Local")
 	assert.Nil(t, err)
 	defer db.Close()
@@ -56,4 +57,22 @@ func TestNewTableMetaManager(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, mng)
 	assert.Equal(t, []Schema{schema}, mng.schemas)
+}
+
+func TestReadAllTableNamesInSchema(t *testing.T) {
+	t.Skip("依赖mysql特定表information_schema")
+	db, err := gorm.Open("mysql", "mysql2nsq:mysql2nsq@(127.0.0.1:3309)/information_schema?charset=utf8&parseTime=True&loc=Local")
+	assert.Nil(t, err)
+	defer db.Close()
+
+	sc := SchemaConfig{
+		Name:   "ck",
+		Tables: []string{"picking_batch", "picking_batch_item"},
+	}
+	tmm, err := NewTableMetaManager(db, []SchemaConfig{sc})
+	assert.Nil(t, err)
+
+	tableNames, err := tmm.readAllTableNamesInSchema("ck")
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"operator", "order", "order_item", "picking_batch", "picking_batch_item", "product", "shop", "shop_operator", "sms_queue", "sms_scene", "user"}, tableNames)
 }
