@@ -152,11 +152,19 @@ loop:
 				// 发送新增、删除、修改数据到nsq
 				dc, err := mysql2nsq.NewDataChangedFromBinlogEvent(ev, tmm)
 				if err != nil {
-					log.Errorf("转换成DataChanged出错了：%s\n", err.Error())
+					if err == mysql2nsq.ErrNotFound {
+						log.Debugf("转换DataChanged时没知道表定义")
+					} else {
+						log.Errorf("转换成DataChanged出错了：%s\n", err.Error())
+					}
 				} else {
 					log.Debugf("准备发送数据: %+v\n", dc)
-					if err = producer.Publish(dc.Schema, dc.Encode()); err != nil {
-						log.Errorf("发布至nsq失败：%s\n", err)
+					if bs, err := dc.Encode(); err == nil {
+						if err = producer.Publish(dc.Schema, bs); err != nil {
+							log.Errorf("发布至nsq失败：%s\n", err)
+						}
+					} else {
+						log.Errorf("序列化DataChanged失败: %s\n", err.Error())
 					}
 				}
 				break

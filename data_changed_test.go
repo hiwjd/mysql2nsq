@@ -1,6 +1,10 @@
 package mysql2nsq
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestEncodeDecode(t *testing.T) {
 	dc := &DataChanged{}
@@ -9,7 +13,8 @@ func TestEncodeDecode(t *testing.T) {
 	dc.Table = "user"
 	dc.Rows = []map[string]interface{}{{"id": 1, "name": "hiwjd"}}
 
-	bs := dc.Encode()
+	bs, err := dc.Encode()
+	assert.Nil(t, err)
 
 	dc2 := &DataChanged{}
 	err := dc2.Decode(bs)

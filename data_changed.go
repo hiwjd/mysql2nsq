@@ -10,7 +10,6 @@ import (
 var (
 	ErrInvalidEventType   = errors.New("invalid event type")
 	ErrConvertToRowsEvent = errors.New("Convert event to replication.RowsEvent failed")
-	ErrTableNotFound      = errors.New("table not found")
 )
 
 // Action represents insert,update,delete
@@ -33,12 +32,8 @@ type DataChanged struct {
 	Rows   []map[string]interface{}
 }
 
-func (dc DataChanged) Encode() []byte {
-	bs, err := json.Marshal(dc)
-	if err != nil {
-
-	}
-	return bs
+func (dc DataChanged) Encode() ([]byte, error) {
+	return json.Marshal(dc)
 }
 
 func (dc *DataChanged) Decode(bs []byte) error {
