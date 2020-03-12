@@ -53,7 +53,7 @@ func main() {
 
 	logger := log.NewDefault(w)
 	log.SetDefaultLogger(logger)
-	log.SetLevel(log.LevelTrace)
+	log.SetLevelByName(config.Log.Level)
 
 	// 数据库
 	mysqlDSN := fmt.Sprintf(

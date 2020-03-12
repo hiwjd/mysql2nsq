@@ -8,6 +8,7 @@ enable_db_log = false
   max_backups = 7
   max_age = 10
   compress = true
+  level = "info"
 
 # mysql配置
 # 注意，这里配置的帐号需要有slave和查询`information_schema`库的权限

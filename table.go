@@ -100,19 +100,22 @@ func (tmm TableMetaManager) Dump(w io.Writer) {
 	}
 }
 
-var colValueFormat map[string]func(interface{}) interface{} = map[string]func(interface{}) interface{}{
+var colValueFormat = map[string]func(interface{}) interface{}{
 	"datetime": func(v interface{}) interface{} {
 		if v == nil {
 			return v
 		}
 
-		t, err := time.Parse("2006-01-02 15:04:05", v.(string))
-		if err != nil {
-			log.Errorf("ERROR format column value of datetime type failed: %s\n", err.Error())
-			return v
+		if s, ok := v.(string); ok {
+			t, err := time.Parse("2006-01-02 15:04:05", s)
+			if err != nil {
+				log.Errorf("ERROR format column value of datetime type failed: %s\n", err.Error())
+				return v
+			}
+			return t
 		}
 
-		return t
+		return v
 	},
 }
 
@@ -124,6 +127,18 @@ type Column struct {
 	DataType        string `gorm:"column:DATA_TYPE"`
 }
 
+// Format 把字段值处理成合适的类型
+//
+// 一个场景：mysql中datetime类型字段，从binlog中获取得到的是"2006-01-02 15:04:05"格式的string
+// json序列化后：{"date":"2020-03-10 15:04:05"}
+// 如果定义time.Time类型去反序列化会因为格式和time.Time默认的格式不符导致失败
+//   type Row struct {
+//     Date time.Time `json:"date"`
+//   }
+//
+// Format内把mysql类型是datetime的转成time.Time后返回来解决
+//
+// 添加更多的转换到`colValueFormat`
 func (c Column) Format(v interface{}) interface{} {
 	if format, ok := colValueFormat[c.DataType]; ok {
 		return format(v)
@@ -148,6 +163,7 @@ type Schema struct {
 	Tables []Table
 }
 
+// Query 根据下标获取Column
 func (t Table) Query(index int) (*Column, error) {
 	if index < 0 || index >= len(t.Columns) {
 		return nil, ErrNotFound

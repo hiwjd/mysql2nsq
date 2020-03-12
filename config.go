@@ -17,6 +17,7 @@ type LogConfig struct {
 	MaxBackups int    `toml:"max_backups"` // 最多保留几个日志文件
 	MaxAge     int    `toml:"max_age"`
 	Compress   bool   `toml:"compress"` // 是否压缩
+	Level      string `toml:"level"`    // trace, debug, warn, warning, error, fetal
 }
 
 // MysqlConfig 是mysql配置
