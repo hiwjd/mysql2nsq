@@ -107,6 +107,9 @@ var colValueFormat = map[string]func(interface{}) interface{}{
 		}
 
 		if s, ok := v.(string); ok {
+			if s == "" || s == "0000-00-00 00:00:00" {
+				return nil
+			}
 			t, err := time.Parse("2006-01-02 15:04:05", s)
 			if err != nil {
 				log.Errorf("ERROR format column value of datetime type failed: %s\n", err.Error())
