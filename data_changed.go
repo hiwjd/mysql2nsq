@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/siddontang/go-log/log"
 	"github.com/siddontang/go-mysql/replication"
 )
 
@@ -70,6 +71,7 @@ func NewDataChangedFromBinlogEvent(ev *replication.BinlogEvent, tmm *TableMetaMa
 
 	tbl, err := tmm.Query(dc.Schema, dc.Table)
 	if err != nil {
+		log.Debugf("获取表定义失败:%s - %s", dc.Schema, dc.Table)
 		return nil, err
 	}
 

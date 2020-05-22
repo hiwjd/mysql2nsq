@@ -11,7 +11,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/siddontang/go-log v0.0.0-20180807004314-8d05993dda07
 	github.com/siddontang/go-mysql v0.0.0-20200120044259-a9add8d89449
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.4.0
+	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0

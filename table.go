@@ -100,8 +100,8 @@ func (tmm TableMetaManager) Dump(w io.Writer) {
 	}
 }
 
-var colValueFormat = map[string]func(interface{}) interface{}{
-	"datetime": func(v interface{}) interface{} {
+var colValueFormat = map[string]func(Column, interface{}) interface{}{
+	"datetime": func(c Column, v interface{}) interface{} {
 		if v == nil {
 			return v
 		}
@@ -112,7 +112,7 @@ var colValueFormat = map[string]func(interface{}) interface{}{
 			}
 			t, err := time.Parse("2006-01-02 15:04:05", s)
 			if err != nil {
-				log.Errorf("ERROR format column value of datetime type failed: %s\n", err.Error())
+				log.Errorf("Format datetime type column failed: %s, column name: %s\n", err.Error(), c.ColumnName)
 				return v
 			}
 			return t
@@ -144,7 +144,7 @@ type Column struct {
 // 添加更多的转换到`colValueFormat`
 func (c Column) Format(v interface{}) interface{} {
 	if format, ok := colValueFormat[c.DataType]; ok {
-		return format(v)
+		return format(c, v)
 	}
 	return v
 }

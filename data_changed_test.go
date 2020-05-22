@@ -17,7 +17,7 @@ func TestEncodeDecode(t *testing.T) {
 	assert.Nil(t, err)
 
 	dc2 := &DataChanged{}
-	err := dc2.Decode(bs)
+	err = dc2.Decode(bs)
 	if err != nil {
 		t.Fatal(err)
 	}
