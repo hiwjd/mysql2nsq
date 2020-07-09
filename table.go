@@ -30,6 +30,7 @@ func NewTableMetaManager(db *gorm.DB, schemaConfigs []SchemaConfig) (*TableMetaM
 	if tmm.schemas, err = tmm.buildSchemas(); err != nil {
 		return nil, err
 	}
+	log.Infof("tmm.schemas: %+v\n", tmm.schemas)
 
 	return tmm, nil
 }
