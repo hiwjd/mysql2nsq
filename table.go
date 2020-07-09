@@ -1,12 +1,12 @@
 package mysql2nsq
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
 	"time"
 
-	"github.com/jinzhu/gorm"
 	"github.com/siddontang/go-log/log"
 )
 
@@ -17,13 +17,13 @@ var (
 
 // TableMetaManager 管理表结构
 type TableMetaManager struct {
-	db            *gorm.DB
+	db            *sql.DB
 	schemaConfigs []SchemaConfig
 	schemas       []Schema
 }
 
 // NewTableMetaManager 返回TableMetaManager实例
-func NewTableMetaManager(db *gorm.DB, schemaConfigs []SchemaConfig) (*TableMetaManager, error) {
+func NewTableMetaManager(db *sql.DB, schemaConfigs []SchemaConfig) (*TableMetaManager, error) {
 	tmm := &TableMetaManager{db: db, schemaConfigs: schemaConfigs}
 
 	var err error
@@ -52,29 +52,41 @@ func (tmm TableMetaManager) Query(schemaName, tableName string) (*Table, error) 
 }
 
 func (tmm *TableMetaManager) buildSchemas() ([]Schema, error) {
-	log.Infof("tmm.schemaConfigs: %+v\n", tmm.schemaConfigs)
+	q := "SELECT COLUMN_NAME,ORDINAL_POSITION,IS_NULLABLE,DATA_TYPE FROM COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION ASC"
 	var schemas []Schema
 	for _, schema := range tmm.schemaConfigs {
-		log.Infof("  schema: %+v\n", schema)
 		if len(schema.Tables) == 0 {
-			log.Infof("  查询schema[%s]的所有表\n", schema.Name)
 			// 查询该库所有表
 			tbls, err := tmm.readAllTableNamesInSchema(schema.Name)
 			if err != nil {
 				return nil, err
 			}
 			schema.Tables = tbls
-			log.Infof("  查到的所有表: %+v\n", tbls)
 		}
-		log.Info("开始查询表结构")
+
 		var tables []Table
 		for _, tableName := range schema.Tables {
-			log.Infof("  表:%s\n", tableName)
-			var columns []Column
-			if err := tmm.db.Where("TABLE_SCHEMA = ? AND TABLE_NAME = ?", schema.Name, tableName).Order("ORDINAL_POSITION ASC").Find(&columns).Error; err != nil {
+			rows, err := tmm.db.Query(q, schema.Name, tableName)
+			if err != nil {
 				return nil, err
 			}
-			log.Infof("    列s:%+v\n", columns)
+
+			var columns []Column
+			for rows.Next() {
+				var ord int
+				var colName, isNullable, dataType string
+				if err = rows.Scan(&colName, &ord, &isNullable, &dataType); err != nil {
+					return nil, err
+				}
+
+				column := Column{
+					ColumnName:      colName,
+					OrdinalPosition: ord,
+					IsNullable:      isNullable,
+					DataType:        dataType,
+				}
+				columns = append(columns, column)
+			}
 
 			table := Table{}
 			table.Columns = columns
@@ -93,11 +105,22 @@ func (tmm *TableMetaManager) buildSchemas() ([]Schema, error) {
 }
 
 func (tmm TableMetaManager) readAllTableNamesInSchema(schemaName string) ([]string, error) {
-	var tableNames []string
-	if err := tmm.db.Debug().Model(&tbl{}).Where("TABLE_SCHEMA=?", schemaName).Pluck("TABLE_NAME", &tableNames).Error; err != nil {
+	rows, err := tmm.db.Query("SELECT `TABLE_NAME` FROM `TABLES` WHERE `TABLE_SCHEMA` = ?", schemaName)
+	if err != nil {
 		return nil, err
 	}
-	return tableNames, nil
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			panic(err)
+		}
+
+		names = append(names, name)
+	}
+
+	return names, nil
 }
 
 func (tmm TableMetaManager) Dump(w io.Writer) {
@@ -106,6 +129,14 @@ func (tmm TableMetaManager) Dump(w io.Writer) {
 	} else {
 		w.Write(bs)
 	}
+}
+
+func (tmm TableMetaManager) AsStr() string {
+	bs, err := json.Marshal(tmm.schemas)
+	if err != nil {
+		return ""
+	}
+	return string(bs)
 }
 
 var colValueFormat = map[string]func(Column, interface{}) interface{}{

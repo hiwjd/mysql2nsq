@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gofrs/uuid"
 	"github.com/hiwjd/mysql2nsq"
-	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/nsqio/go-nsq"
 	"github.com/siddontang/go-log/log"
@@ -63,12 +63,13 @@ func main() {
 		config.Mysql.Host,
 		config.Mysql.Port,
 	)
-	db, err := gorm.Open("mysql", mysqlDSN)
+	db, err := sql.Open("mysql", mysqlDSN)
+	// db, err := gorm.Open("mysql", mysqlDSN)
 	if err != nil {
 		log.Fatalf("打开数据库失败: %s\n", err.Error())
 	}
-	db.SetLogger(logger)
-	db.LogMode(config.EnableDBLog)
+	// db.SetLogger(logger)
+	// db.LogMode(config.EnableDBLog)
 	defer db.Close()
 
 	// 表字段定义
@@ -76,6 +77,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("表结构获取失败: %s\n", err.Error())
 	}
+	log.Printf("获得表结构: %s\n", tmm.AsStr())
 
 	// GTIDSet存储器
 	storage, err := mysql2nsq.NewGTIDSetStorage(config.Storage.FilePath, config.Storage.InitGTIDSet)
