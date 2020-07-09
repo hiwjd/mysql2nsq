@@ -52,22 +52,29 @@ func (tmm TableMetaManager) Query(schemaName, tableName string) (*Table, error) 
 }
 
 func (tmm *TableMetaManager) buildSchemas() ([]Schema, error) {
+	log.Infof("tmm.schemaConfigs: %+v\n", tmm.schemaConfigs)
 	var schemas []Schema
 	for _, schema := range tmm.schemaConfigs {
+		log.Infof("  schema: %+v\n", schema)
 		if len(schema.Tables) == 0 {
+			log.Infof("  查询schema[%s]的所有表\n", schema.Name)
 			// 查询该库所有表
 			tbls, err := tmm.readAllTableNamesInSchema(schema.Name)
 			if err != nil {
 				return nil, err
 			}
 			schema.Tables = tbls
+			log.Infof("  查到的所有表: %+v\n", tbls)
 		}
+		log.Info("开始查询表结构")
 		var tables []Table
 		for _, tableName := range schema.Tables {
+			log.Infof("  表:%s\n", tableName)
 			var columns []Column
 			if err := tmm.db.Where("TABLE_SCHEMA = ? AND TABLE_NAME = ?", schema.Name, tableName).Order("ORDINAL_POSITION ASC").Find(&columns).Error; err != nil {
 				return nil, err
 			}
+			log.Infof("    列s:%+v\n", columns)
 
 			table := Table{}
 			table.Columns = columns
