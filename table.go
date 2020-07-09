@@ -94,7 +94,7 @@ func (tmm *TableMetaManager) buildSchemas() ([]Schema, error) {
 
 func (tmm TableMetaManager) readAllTableNamesInSchema(schemaName string) ([]string, error) {
 	var tableNames []string
-	if err := tmm.db.Model(&tbl{}).Where("TABLE_SCHEMA=?", schemaName).Pluck("TABLE_NAME", &tableNames).Error; err != nil {
+	if err := tmm.db.Debug().Model(&tbl{}).Where("TABLE_SCHEMA=?", schemaName).Pluck("TABLE_NAME", &tableNames).Error; err != nil {
 		return nil, err
 	}
 	return tableNames, nil
